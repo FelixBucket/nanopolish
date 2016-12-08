@@ -111,7 +111,7 @@ namespace opt
     static int calibrate = 0;
     static int consensus_mode = 0;
     static int fix_homopolymers = 0;
-    static int ploidy = 1;
+    static int ploidy = 0;
     static int min_distance_between_variants = 10;
     static int min_flanking_sequence = 30;
     static int max_haplotypes = 1000;
@@ -145,6 +145,7 @@ static const struct option longopts[] = {
     { "threads",                 required_argument, NULL, 't' },
     { "min-candidate-frequency", required_argument, NULL, 'm' },
     { "candidates",              required_argument, NULL, 'c' },
+    { "ploidy",                  required_argument, NULL, 'p' },
     { "models-fofn",             required_argument, NULL, OPT_MODELS_FOFN },
     { "p-skip",                  required_argument, NULL, OPT_P_SKIP },
     { "p-skip-self",             required_argument, NULL, OPT_P_SKIP_SELF },
@@ -552,7 +553,7 @@ Haplotype fix_homopolymers(const Haplotype& input_haplotype,
         for(size_t j = 0; j < event_sequences.size(); ++j) {
             assert(kmer_size == event_sequences[j].read->pore_model[0].k);
             assert(kmer_size == 6);
-            
+
             const SquiggleRead* read = event_sequences[j].read;
             size_t strand = event_sequences[j].strand;
 
@@ -560,7 +561,6 @@ Haplotype fix_homopolymers(const Haplotype& input_haplotype,
             if( abs(event_sequences[j].event_start_idx - event_sequences[j].event_stop_idx) < 10) {
                 continue;
             }
-            
 
             // Fit a gamma distribution to the durations in this region of the read
             double local_time = fabs(read->get_time(event_sequences[j].event_start_idx, strand) - read->get_time(event_sequences[j].event_stop_idx, strand));
@@ -751,7 +751,7 @@ Haplotype call_haplotype_from_candidates(const AlignmentDB& alignments,
 
             // Select the best set of variants
             std::vector<Variant> selected_variants =
-                select_variant_set(calling_variants, calling_haplotype, event_sequences, opt::max_haplotypes, alignment_flags);
+                select_variant_set(calling_variants, calling_haplotype, event_sequences, opt::max_haplotypes, opt::ploidy, alignment_flags);
 
             // optionally annotate each variant with fraction of reads supporting A,C,G,T at this position
             if(opt::calculate_all_support) {
@@ -917,6 +917,7 @@ void parse_call_variants_options(int argc, char** argv)
             case 'o': arg >> opt::output_file; break;
             case 'm': arg >> opt::min_candidate_frequency; break;
             case 'c': arg >> opt::candidates_file; break;
+            case 'p': arg >> opt::ploidy; break;
             case '?': die = true; break;
             case 't': arg >> opt::num_threads; break;
             case 'v': opt::verbose++; break;
@@ -960,6 +961,13 @@ void parse_call_variants_options(int argc, char** argv)
     if(opt::genome_file.empty()) {
         std::cerr << SUBPROGRAM ": a --genome file must be provided\n";
         die = true;
+    }
+
+    if(!opt::consensus_mode && opt::ploidy == 0) {
+        std::cerr << SUBPROGRAM ": --ploidy parameter must be provided\n";
+        die = true;
+    } else if(opt::consensus_mode) {
+        opt::ploidy = 1;
     }
 
     if(opt::bam_file.empty()) {
