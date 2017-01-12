@@ -838,7 +838,7 @@ Haplotype call_variants_for_region(const std::string& contig, int region_start, 
     // Step 1. Discover putative variants across the whole region
     std::vector<Variant> candidate_variants;
     if(opt::candidates_file.empty()) {
-        candidate_variants = alignments.get_variants_in_region(contig, region_start, region_end, opt::min_candidate_frequency, 20);
+        candidate_variants = alignments.get_variants_in_region(contig, region_start, region_end, opt::min_candidate_frequency, 10);
     } else {
         candidate_variants = get_variants_from_vcf(opt::candidates_file, contig, region_start, region_end);
     }
